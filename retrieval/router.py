@@ -32,21 +32,9 @@ class RetrievalRouter:
         if strategy == RetrievalStrategy.SQL:
             return await self._sql.search(query, top_k=top_k)
         if strategy == RetrievalStrategy.HYBRID:
-            results = await asyncio.gather(
+            vector_docs, bm25_docs = await asyncio.gather(
                 self._vector.search(query, top_k=top_k),
                 self._bm25.search(query, top_k=top_k),
             )
-            return self._aggregate(results, top_k)
+            return vector_docs + bm25_docs
         return await self._vector.search(query, top_k=top_k)
-
-    def _aggregate(
-        self, grouped_results: list[list[RetrievedDocument]], top_k: int
-    ) -> list[RetrievedDocument]:
-        merged: dict[str, RetrievedDocument] = {}
-        for result_set in grouped_results:
-            for document in result_set:
-                existing = merged.get(document.document_id)
-                if existing is None or document.score > existing.score:
-                    merged[document.document_id] = document
-        ranked = sorted(merged.values(), key=lambda item: item.score, reverse=True)
-        return ranked[:top_k]

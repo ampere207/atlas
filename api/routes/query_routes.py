@@ -8,6 +8,7 @@ from core.dependencies import (
     get_context_optimizer,
     get_llm_provider,
     get_query_classifier,
+    get_result_aggregator,
     get_reranker,
     get_retrieval_router,
     get_strategy_selector,
@@ -15,6 +16,7 @@ from core.dependencies import (
 from llm.llm_interface import LLMProvider
 from query_intelligence.query_classifier import QueryClassifier
 from query_intelligence.strategy_selector import StrategySelector
+from ranking.result_aggregator import ResultAggregator
 from ranking.reranker import Reranker
 from retrieval.router import RetrievalRouter
 
@@ -27,6 +29,7 @@ async def query(
     classifier: QueryClassifier = Depends(get_query_classifier),
     selector: StrategySelector = Depends(get_strategy_selector),
     retrieval_router: RetrievalRouter = Depends(get_retrieval_router),
+    result_aggregator: ResultAggregator = Depends(get_result_aggregator),
     reranker: Reranker = Depends(get_reranker),
     context_optimizer: ContextOptimizer = Depends(get_context_optimizer),
     llm_provider: LLMProvider = Depends(get_llm_provider),
@@ -34,7 +37,10 @@ async def query(
 ) -> QueryResponse:
     cached = await semantic_cache.get_cached_response(payload.query)
     if cached is not None:
-        return QueryResponse.model_validate(cached)
+        cached_payload = dict(cached)
+        cached_payload["query"] = payload.query
+        cached_payload["cached"] = True
+        return QueryResponse.model_validate(cached_payload)
 
     classification = await classifier.classify(payload.query)
     strategy = selector.select_strategy(classification)
@@ -44,15 +50,15 @@ async def query(
         strategy=strategy,
         top_k=payload.top_k,
     )
-    ranked = await reranker.rerank(payload.query, docs)
-    optimized = await context_optimizer.optimize(ranked)
+    candidates = await result_aggregator.aggregate(docs, top_k=max(payload.top_k * 3, payload.top_k))
+    reranked = await reranker.rerank(payload.query, candidates)
+    optimized = await context_optimizer.optimize(reranked[: payload.top_k])
 
     context_text = "\n\n".join(doc.content for doc in optimized)
     prompt = (
-        "You are Atlas.\n\n"
-        "Answer the question using ONLY the context below.\n\n"
-        f"Query:\n{payload.query}\n\n"
-        f"Context:\n{context_text}"
+        "Use the following context to answer the question.\n\n"
+        f"Context:\n{context_text}\n\n"
+        f"Question:\n{payload.query}"
     )
     answer = await llm_provider.generate_text(prompt)
 

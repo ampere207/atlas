@@ -9,4 +9,6 @@ class IngestResponse(BaseModel):
     document_id: str
     filename: str
     source: str
+    chunks_created: int
+    characters: int
     timestamp: datetime

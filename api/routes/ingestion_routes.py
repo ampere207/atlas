@@ -24,9 +24,11 @@ async def ingest(
     )
     return IngestResponse(
         status="success",
-        message="Document metadata stored. Full ingestion pipeline is pending Phase 2.",
+        message="Document ingested and indexed in vector and BM25 stores.",
         document_id=result["document_id"],
         filename=result["filename"],
         source=result["source"],
+        chunks_created=result["chunks_created"],
+        characters=result["characters"],
         timestamp=datetime.utcnow(),
     )

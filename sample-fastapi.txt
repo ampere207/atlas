@@ -1,0 +1,3 @@
+FastAPI import errors often happen because of missing packages,
+incorrect module paths, or running the app from the wrong working directory.
+Use absolute imports and verify the virtual environment is active.
