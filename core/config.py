@@ -30,15 +30,24 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://atlas:atlas@localhost:5432/atlas"
     )
     redis_url: str = "redis://localhost:6379/0"
+    neo4j_uri: str = "neo4j://localhost:7687"
+    neo4j_username: str = "neo4j"
+    neo4j_password: str = "password"
 
     default_top_k: int = 5
     chunk_size_tokens: int = 500
     chunk_overlap_tokens: int = 100
     context_max_tokens: int = 1800
+
+    # Metrics & Learning
+    enable_metrics: bool = True
+    retrieval_latency_threshold_ms: int = 1000
     cache_ttl_seconds: int = 900
-    cache_similarity_threshold: float = 0.9
+    cache_similarity_threshold: float = 0.98
     cache_max_entries: int = 500
-    use_placeholder_retrieval: bool = True
+
+    # Feature Flags
+    use_placeholder_retrieval: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
